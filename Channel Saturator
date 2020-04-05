@@ -1,0 +1,78 @@
+// (C) 2020, Scott Nelle.
+// Clipping logic from Loser/Saturation by Michael Gruhn.
+// Trim logic derived from ReaperBlog_Multichannel Volume Trim.jsfx by ReaperBlog.
+
+// This effect applies the soft clipping logic from the Saturation effect by LOSER
+// across four saturation stages. It has a character switch which modifies the
+// final stage, granting a slightly more edgy character to the saturation. It also
+// Implements a trim level, so that you can balance the output against the input.
+
+// NO WARRANTY IS GRANTED. THIS PLUG-IN IS PROVIDED ON AN "AS IS" BASIS, WITHOUT
+// WARRANTY OF ANY KIND. NO LIABILITY IS GRANTED, INCLUDING, BUT NOT LIMITED TO,
+// ANY DIRECT OR INDIRECT,  SPECIAL,  INCIDENTAL OR CONSEQUENTIAL DAMAGE ARISING
+// OUT OF  THE  USE  OR INABILITY  TO  USE  THIS PLUG-IN,  COMPUTER FAILTURE  OF
+// MALFUNCTION INCLUDED.  THE USE OF THE SOURCE CODE,  EITHER  PARTIALLY  OR  IN
+// TOTAL, IS ONLY GRANTED,  IF USED IN THE SENSE OF THE AUTHOR'S INTENTION,  AND
+// USED WITH ACKNOWLEDGEMENT OF THE AUTHOR. FURTHERMORE IS THIS PLUG-IN A  THIRD
+// PARTY CONTRIBUTION,  EVEN IF INCLUDED IN REAPER(TM),  COCKOS INCORPORATED  OR
+// ITS AFFILIATES HAVE NOTHING TO DO WITH IT.  LAST BUT NOT LEAST, BY USING THIS
+// PLUG-IN YOU RELINQUISH YOUR CLAIM TO SUE IT'S AUTHOR, AS WELL AS THE CLAIM TO
+// ENTRUST SOMEBODY ELSE WITH DOING SO.
+
+desc:Channel Saturator
+desc:Channel Saturator [Scott Nellé]
+//tags: processing amplitude gain saturation
+//author: Scott Nellé
+
+slider1:saturation=35<0,100,1>Amount (%)
+slider2:trim=-2<-12,0,.2>Trim (dB)
+slider3:character=0<1,0,1{Soft,Edgy}>Character
+
+
+in_pin:left input
+in_pin:right input
+out_pin:left output
+out_pin:right output
+
+@init
+
+@slider
+
+foo=saturation/200*$pi;
+bar=sin(saturation/200*$pi);
+
+// Edgy saturation.
+fooEdgy=foo*1.5;
+barEdgy=bar*1;
+
+// Trim logic.
+output = 10 ^ (trim / 20);
+
+@sample
+// Saturation logic.
+saturation ? (
+  // Stage 1
+  spl0 = min(max( sin(max(min(spl0,1),-1)*foo)/bar ,-1) ,1);
+  spl1 = min(max( sin(max(min(spl1,1),-1)*foo)/bar ,-1) ,1);
+  // Stage 2.
+  spl0 = min(max( sin(max(min(spl0,1),-1)*foo)/bar ,-1) ,1);
+  spl1 = min(max( sin(max(min(spl1,1),-1)*foo)/bar ,-1) ,1);
+  // Stage 3.
+  spl0 = min(max( sin(max(min(spl0,1),-1)*foo)/bar ,-1) ,1);
+  spl1 = min(max( sin(max(min(spl1,1),-1)*foo)/bar ,-1) ,1);
+  // Stage 4, including character.
+  character == 1 ? (
+    // Edgy.
+    spl0 = min(max( sin(max(min(spl0,1),-1)*fooEdgy)/barEdgy ,-1) ,1);
+    spl1 = min(max( sin(max(min(spl1,1),-1)*fooEdgy)/barEdgy ,-1) ,1);
+  ):(
+    // Default/Soft.
+    spl0 = min(max( sin(max(min(spl0,1),-1)*foo)/bar ,-1) ,1);
+    spl1 = min(max( sin(max(min(spl1,1),-1)*foo)/bar ,-1) ,1);
+  );
+
+);
+
+// Apply trim to output.
+spl0 *= output;
+spl1 *= output;
